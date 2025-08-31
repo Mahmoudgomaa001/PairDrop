@@ -1,4 +1,4 @@
-const cacheVersion = 'v1.11.2-minimal';
+const cacheVersion = 'v1.11.2-minimal-debug';
 const cacheTitle = `pairdrop-cache-${cacheVersion}`;
 const relativePathsToCache = [
     './',
@@ -17,131 +17,31 @@ const relativePathsNotToCache = [
     'config'
 ]
 
+const postMessageToClients = async (message) => {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+    clients.forEach(client => {
+        client.postMessage(message);
+    });
+};
+
 self.addEventListener('install', function(event) {
-    // Perform install steps
-    console.log("Cache files for sw:", cacheVersion);
+    postMessageToClients({ type: 'LOG', message: 'SW: Install event received.' });
     event.waitUntil(
         caches.open(cacheTitle)
             .then(function(cache) {
+                postMessageToClients({ type: 'LOG', message: 'SW: Caching core files.' });
                 return cache
                     .addAll(relativePathsToCache)
                     .then(_ => {
-                        console.log('All files cached for sw:', cacheVersion);
+                        postMessageToClients({ type: 'LOG', message: 'SW: Core files cached. Skipping wait.' });
                         self.skipWaiting();
                     });
             })
     );
 });
 
-// fetch the resource from the network
-const fromNetwork = (request, timeout) =>
-    new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(reject, timeout);
-        fetch(request, {cache: "no-store"})
-            .then(response => {
-                if (response.redirected) {
-                    throw new Error("Fetch is redirect. Abort usage and cache!");
-                }
-
-                clearTimeout(timeoutId);
-                resolve(response);
-
-                // Prevent requests that are in relativePathsNotToCache from being cached
-                if (doNotCacheRequest(request)) return;
-
-                updateCache(request)
-                    .then(() => console.log("Cache successfully updated for", request.url))
-                    .catch(err => console.log("Cache could not be updated for", request.url, err));
-            })
-            .catch(error => {
-                // Handle any errors that occurred during the fetch
-                console.error(`Could not fetch ${request.url}.`);
-                reject(error);
-            });
-    });
-
-// fetch the resource from the browser cache
-const fromCache = request =>
-    caches
-        .open(cacheTitle)
-        .then(cache =>
-            cache.match(request)
-        );
-
-const rootUrl = location.href.substring(0, location.href.length - "service-worker.js".length);
-const rootUrlLength = rootUrl.length;
-
-const doNotCacheRequest = request => {
-    const requestRelativePath = request.url.substring(rootUrlLength);
-    return relativePathsNotToCache.indexOf(requestRelativePath) !== -1
-};
-
-// cache the current page to make it available for offline
-const updateCache = request => new Promise((resolve, reject) => {
-    caches
-        .open(cacheTitle)
-        .then(cache =>
-            fetch(request, {cache: "no-store"})
-                .then(response => {
-                    if (response.redirected) {
-                        throw new Error("Fetch is redirect. Abort usage and cache!");
-                    }
-
-                    cache
-                        .put(request, response)
-                        .then(() => resolve());
-                })
-                .catch(reason => reject(reason))
-        );
-});
-
-// general strategy when making a request:
-// 1. Try to retrieve file from cache
-// 2. If cache is not available: Fetch from network and update cache.
-// This way, cached files are only updated if the cacheVersion is changed
-self.addEventListener('fetch', function(event) {
-    const swOrigin = new URL(self.location.href).origin;
-    const requestOrigin = new URL(event.request.url).origin;
-
-    if (swOrigin !== requestOrigin) {
-        // Do not handle requests from other origin
-        event.respondWith(fetch(event.request));
-    }
-    else if (event.request.method === "POST") {
-        // Requests related to Web Share Target.
-        event.respondWith(
-            evaluateRequestData(event.request).then(() => {
-                return new Response(null, { status: 200, statusText: "OK" });
-            })
-        );
-    }
-    else {
-        // Regular requests not related to Web Share Target:
-        // If request is excluded from cache -> respondWith fromNetwork
-        // else -> try fromCache first
-        event.respondWith(
-            doNotCacheRequest(event.request)
-                ? fromNetwork(event.request, 10000)
-                : fromCache(event.request)
-                    .then(rsp => {
-                        // if fromCache resolves to undefined fetch from network instead
-                        if (!rsp) {
-                            throw new Error("No match found.");
-                        }
-                        return rsp;
-                    })
-                    .catch(error => {
-                        console.error("Could not retrieve request from cache:", event.request.url, error);
-                        return fromNetwork(event.request, 10000);
-                    })
-        );
-    }
-});
-
-
-// on activation, we clean up the previously registered service workers
 self.addEventListener('activate', evt => {
-    console.log("Activate sw:", cacheVersion);
+    postMessageToClients({ type: 'LOG', message: `SW: Activate event received. Version: ${cacheVersion}` });
     evt.waitUntil(clients.claim());
     return evt.waitUntil(
         caches
@@ -150,7 +50,7 @@ self.addEventListener('activate', evt => {
                 return Promise.all(
                     cacheNames.map(cacheName => {
                         if (cacheName !== cacheTitle) {
-                            console.log("Delete cache:", cacheName);
+                            postMessageToClients({ type: 'LOG', message: `SW: Deleting old cache: ${cacheName}` });
                             return caches.delete(cacheName);
                         }
                     })
@@ -159,21 +59,41 @@ self.addEventListener('activate', evt => {
     )
 });
 
-const postMessageToClients = async (message) => {
-    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
-    clients.forEach(client => {
-        client.postMessage(message);
-    });
-};
+
+self.addEventListener('fetch', function(event) {
+    if (event.request.method === "POST") {
+        postMessageToClients({ type: 'LOG', message: 'SW: POST request intercepted.' });
+        event.respondWith(
+            evaluateRequestData(event.request).then(() => {
+                postMessageToClients({ type: 'LOG', message: 'SW: POST request evaluation finished.' });
+                return new Response(null, { status: 200, statusText: "OK" });
+            }).catch(err => {
+                postMessageToClients({ type: 'LOG', message: `SW: POST evaluation error: ${err}` });
+                return new Response(null, { status: 500, statusText: "Share processing failed" });
+            })
+        );
+    } else {
+        // Basic cache-first for GET requests. Not logging for brevity.
+        event.respondWith(
+            caches.match(event.request)
+                .then(response => {
+                    return response || fetch(event.request);
+                })
+        );
+    }
+});
 
 const evaluateRequestData = async function (request) {
+    await postMessageToClients({ type: 'LOG', message: 'SW: Evaluating request data.' });
     const formData = await request.formData();
     const files = formData.getAll("allfiles");
 
     if (!files || files.length === 0) {
-        // Handle text shares if necessary, or ignore. For now, just resolve.
+        await postMessageToClients({ type: 'LOG', message: 'SW: No files found in POST request.' });
         return Promise.resolve();
     }
+
+    await postMessageToClients({ type: 'LOG', message: `SW: Found ${files.length} file(s). Preparing to save.` });
 
     const fileObjects = await Promise.all(files.map(async file => ({
         name: file.name,
@@ -184,11 +104,12 @@ const evaluateRequestData = async function (request) {
         const DBOpenRequest = indexedDB.open('pairdrop_store');
 
         DBOpenRequest.onerror = (event) => {
-            console.error("Error opening IndexedDB:", event);
-            reject("Error opening IndexedDB");
+            postMessageToClients({ type: 'LOG', message: `SW: IndexedDB error: ${event.target.error}` });
+            reject(`IndexedDB error: ${event.target.error}`);
         };
 
         DBOpenRequest.onsuccess = (event) => {
+            postMessageToClients({ type: 'LOG', message: 'SW: IndexedDB opened successfully.' });
             const db = event.target.result;
             const transaction = db.transaction('share_target_files', 'readwrite');
             const objectStore = transaction.objectStore('share_target_files');
@@ -196,18 +117,25 @@ const evaluateRequestData = async function (request) {
             const addPromises = fileObjects.map(file => {
                 return new Promise((resolveAdd, rejectAdd) => {
                     const request = objectStore.add(file);
-                    request.onsuccess = () => resolveAdd();
-                    request.onerror = () => rejectAdd("Error adding file to object store");
+                    request.onsuccess = () => {
+                        postMessageToClients({ type: 'LOG', message: `SW: Saved ${file.name} to IndexedDB.` });
+                        resolveAdd();
+                    };
+                    request.onerror = (e) => {
+                        postMessageToClients({ type: 'LOG', message: `SW: Failed to save ${file.name}: ${e.target.error}` });
+                        rejectAdd(`Failed to save ${file.name}`);
+                    };
                 });
             });
 
             Promise.all(addPromises)
                 .then(async () => {
+                    await postMessageToClients({ type: 'LOG', message: 'SW: All files saved. Sending SHARE_SUCCESS message.' });
                     await postMessageToClients({ type: 'SHARE_SUCCESS' });
                     resolve();
                 })
                 .catch(error => {
-                    console.error(error);
+                    postMessageToClients({ type: 'LOG', message: `SW: Error saving one or more files: ${error}` });
                     reject(error);
                 });
         };
