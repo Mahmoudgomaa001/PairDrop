@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Redirect button logic
     redirectButton.addEventListener('click', () => {
-        window.location.href = 'http://192.168.1.10:500';
+        window.location.href = 'http://192.168.1.10:5000';
     });
 
     // 2. Close dialog button logic
