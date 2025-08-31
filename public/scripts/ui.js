@@ -2073,7 +2073,7 @@ class ReceiveTextDialog extends Dialog {
         this.$text.innerText = text;
 
         // Beautify text if text is not too long
-        if (this.$text.innerText.length <= 300000) {
+        if (this.$text.innerText.length <= 500000) {
             // Hacky workaround to replace URLs with link nodes in all cases
             // 1. Use text variable, find all valid URLs via regex and replace URLs with placeholder
             // 2. Use html variable, find placeholders with regex and replace them with link nodes

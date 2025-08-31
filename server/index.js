@@ -35,7 +35,7 @@ let conf = {};
 
 conf.debugMode = process.env.DEBUG_MODE === "true";
 
-conf.port = process.env.PORT || 3000;
+conf.port = process.env.PORT || 5000;
 
 conf.wsFallback = process.argv.includes('--include-ws-fallback') || process.env.WS_FALLBACK === "true";
 
@@ -126,7 +126,7 @@ if (conf.signalingServer) {
     const endsWithSlash = /\/$/.test(conf.signalingServer)
     if (!isValidUrl || containsProtocol) {
         console.error("SIGNALING_SERVER must be a valid url without the protocol prefix.\n" +
-            "Examples of valid values: `pairdrop.net`, `pairdrop.example.com:3000`, `example.com/pairdrop`");
+            "Examples of valid values: `pairdrop.net`, `pairdrop.example.com:5000`, `example.com/pairdrop`");
         process.exit(1);
     }
 

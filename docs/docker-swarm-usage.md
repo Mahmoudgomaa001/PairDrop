@@ -34,14 +34,14 @@ The [Docker Image](../Dockerfile) includes a health check with the following opt
 
 
 The CMD instruction is used to define the command that will be run as part of the health check. \
-In this case, the command is `wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1`. \
-This command will attempt to connect to `http://localhost:3000/` \
+In this case, the command is `wget --quiet --tries=1 --spider http://localhost:5000/ || exit 1`. \
+This command will attempt to connect to `http://localhost:5000/` \
 and if it fails it will exit with a status code of `1`. \
 If this command returns a status code other than `0`, the health check fails.
 
 Overall, this \"HEALTHCHECK\" instruction is defining a health check process \
 that runs every 30 seconds, and waits up to 10 seconds for a response, \
 begins 5 seconds after the container is started, and retries up to 3 times. \ 
-The health check attempts to connect to http://localhost:3000/ \
+The health check attempts to connect to http://localhost:5000/ \
 and will considers the container unhealthy if unable to connect.
 

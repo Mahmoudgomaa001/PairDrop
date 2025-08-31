@@ -34,7 +34,7 @@ The easiest way to get PairDrop up and running is by using Docker.
 ### Docker Image from Docker Hub
 
 ```bash
-docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:3000:3000 lscr.io/linuxserver/pairdrop
+docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:5000:5000 lscr.io/linuxserver/pairdrop
 ```
 > This image is hosted by [linuxserver.io](https://linuxserver.io). For more information visit https://hub.docker.com/r/linuxserver/pairdrop
 
@@ -44,7 +44,7 @@ docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:3000:3000 ls
 ### Docker Image from GitHub Container Registry (ghcr.io)
 
 ```bash
-docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:3000:3000 ghcr.io/schlagmichdoch/pairdrop
+docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:5000:5000 ghcr.io/schlagmichdoch/pairdrop
 ```
 
 
@@ -65,7 +65,7 @@ docker build --pull . -f Dockerfile -t pairdrop
 #### Run the image
 
 ```bash
-docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:3000:3000 -it pairdrop
+docker run -d --restart=unless-stopped --name=pairdrop -p 127.0.0.1:5000:5000 -it pairdrop
 ```
 
 > You must use a server proxy to set the `X-Forwarded-For` header 
@@ -84,18 +84,18 @@ Set options by using the following flags in the `docker run` command:
 #### Port
 
 ```bash
--p 127.0.0.1:8080:3000
+-p 127.0.0.1:8080:5000
 ```
 
 > Specify the port used by the docker image
 >
-> - 3000 -> `-p 127.0.0.1:3000:3000`
-> - 8080 -> `-p 127.0.0.1:8080:3000`
+> - 5000 -> `-p 127.0.0.1:5000:5000`
+> - 8080 -> `-p 127.0.0.1:8080:5000`
 
 #### Set Environment Variables via Docker
 
 Environment Variables are set directly in the `docker run` command: \
-e.g. `docker run -p 127.0.0.1:3000:3000 -it pairdrop -e DEBUG_MODE="true"`
+e.g. `docker run -p 127.0.0.1:5000:5000 -it pairdrop -e DEBUG_MODE="true"`
 
 Overview of available Environment Variables are found [here](#environment-variables).
 
@@ -104,7 +104,7 @@ Example:
 docker run -d \
     --name=pairdrop \
     --restart=unless-stopped \
-    -p 127.0.0.1:3000:3000 \
+    -p 127.0.0.1:5000:5000 \
     -e PUID=1000 \
     -e PGID=1000 \
     -e WS_SERVER=false \
@@ -138,7 +138,7 @@ services:
             - DEBUG_MODE=false # Set to true to debug container and peer connections.
             - TZ=Etc/UTC # Time Zone
         ports:
-            - "127.0.0.1:3000:3000" # Web UI
+            - "127.0.0.1:5000:5000" # Web UI
 ```
 
 Run the compose file with `docker compose up -d`.
@@ -171,7 +171,7 @@ Start the server with:
 npm start
 ```
 
-> By default, the node server listens on port 3000.
+> By default, the node server listens on port 5000.
 
 
 <br>
@@ -183,10 +183,10 @@ These are some flags only reasonable when deploying via Node.js
 #### Port
 
 ```bash
-PORT=3000
+PORT=5000
 ```
 
-> Default: `3000`
+> Default: `5000`
 > 
 > Environment variable to specify the port used by the Node.js server \
 > e.g. `PORT=3010 npm start`
@@ -238,13 +238,13 @@ The syntax is different on Unix and Windows.
 On Unix based systems
 
 ```bash
-PORT=3000 RTC_CONFIG="rtc_config.json" npm start
+PORT=5000 RTC_CONFIG="rtc_config.json" npm start
 ```
 
 On Windows
 
 ```bash
-$env:PORT=3000 RTC_CONFIG="rtc_config.json"; npm start
+$env:PORT=5000 RTC_CONFIG="rtc_config.json"; npm start
 ```
 
 Overview of available Environment Variables are found [here](#environment-variables).
@@ -419,7 +419,7 @@ SIGNALING_SERVER="pairdrop.net"
 > Beware that the version of your PairDrop server must be compatible with the version of the signaling server.
 >
 > `SIGNALING_SERVER` must be a valid url without the protocol prefix. 
-> Examples of valid values: `pairdrop.net`, `pairdrop.your-domain.com:3000`, `your-domain.com/pairdrop`
+> Examples of valid values: `pairdrop.net`, `pairdrop.your-domain.com:5000`, `your-domain.com/pairdrop`
 
 <br>
 
@@ -487,7 +487,7 @@ server {
 
     location / {
         proxy_connect_timeout 300;
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Connection "upgrade";
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header X-Forwarded-for $remote_addr;
@@ -503,7 +503,7 @@ server {
 
     location / {
         proxy_connect_timeout 300;
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Connection "upgrade";
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header X-Forwarded-for $remote_addr;
@@ -520,7 +520,7 @@ server {
     expires epoch;
 
     location / {
-        return 301 https://$host:3000$request_uri;
+        return 301 https://$host:5000$request_uri;
     }
 }
 
@@ -533,7 +533,7 @@ server {
 
     location / {
         proxy_connect_timeout 300;
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Connection "upgrade";
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header X-Forwarded-for $remote_addr;
@@ -566,10 +566,10 @@ Create a new configuration file under `/etc/apache2/sites-available` (on Debian)
 
 ```apacheconf
 <VirtualHost *:80>
-	ProxyPass / http://127.0.0.1:3000/ upgrade=websocket
+	ProxyPass / http://127.0.0.1:5000/ upgrade=websocket
 </VirtualHost>
 <VirtualHost *:443>
-	ProxyPass / https://127.0.0.1:3000/ upgrade=websocket
+	ProxyPass / https://127.0.0.1:5000/ upgrade=websocket
 </VirtualHost>
 ```
 
@@ -577,10 +577,10 @@ Create a new configuration file under `/etc/apache2/sites-available` (on Debian)
 
 ```apacheconf
 <VirtualHost *:80>
-	Redirect permanent / https://127.0.0.1:3000/
+	Redirect permanent / https://127.0.0.1:5000/
 </VirtualHost>
 <VirtualHost *:443>
-	ProxyPass / http://127.0.0.1:3000/ upgrade=websocket
+	ProxyPass / http://127.0.0.1:5000/ upgrade=websocket
 </VirtualHost>
 ```
 
@@ -699,7 +699,7 @@ Alternatively:
 
 ##### Google Chrome
 - To skip the installation of the certificate, you can also open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
-- The feature `Insecure origins treated as secure` must be enabled and the list must include your PairDrop test instance. E.g.: `http://127.0.0.1:3000,https://127.0.0.1:8443`
+- The feature `Insecure origins treated as secure` must be enabled and the list must include your PairDrop test instance. E.g.: `http://127.0.0.1:5000,https://127.0.0.1:8443`
 
 Please note that the certificates (CA and webserver cert) expire after a day.
 Also, whenever you restart the NGINX Docker container new certificates are created.
