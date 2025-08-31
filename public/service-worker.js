@@ -109,10 +109,11 @@ self.addEventListener('fetch', function(event) {
     }
     else if (event.request.method === "POST") {
         // Requests related to Web Share Target.
-        event.respondWith((async () => {
-            const share_url = await evaluateRequestData(event.request);
-            return Response.redirect(encodeURI(share_url), 302);
-        })());
+        event.respondWith(
+            evaluateRequestData(event.request).then(() => {
+                return new Response(null, { status: 200, statusText: "OK" });
+            })
+        );
     }
     else {
         // Regular requests not related to Web Share Target:
@@ -158,50 +159,57 @@ self.addEventListener('activate', evt => {
     )
 });
 
-const evaluateRequestData = function (request) {
-    return new Promise(async (resolve) => {
-        const formData = await request.formData();
-        const title = formData.get("title");
-        const text = formData.get("text");
-        const url = formData.get("url");
-        const files = formData.getAll("allfiles");
-
-        const pairDropUrl = request.url;
-
-        if (files && files.length > 0) {
-            let fileObjects = [];
-            for (let i=0; i<files.length; i++) {
-                fileObjects.push({
-                    name: files[i].name,
-                    buffer: await files[i].arrayBuffer()
-                });
-            }
-
-            const DBOpenRequest = indexedDB.open('pairdrop_store');
-            DBOpenRequest.onsuccess = e => {
-                const db = e.target.result;
-                for (let i = 0; i < fileObjects.length; i++) {
-                    const transaction = db.transaction('share_target_files', 'readwrite');
-                    const objectStore = transaction.objectStore('share_target_files');
-
-                    const objectStoreRequest = objectStore.add(fileObjects[i]);
-                    objectStoreRequest.onsuccess = _ => {
-                        if (i === fileObjects.length - 1) resolve(pairDropUrl + '?share_target=files');
-                    }
-                }
-            }
-            DBOpenRequest.onerror = _ => {
-                resolve(pairDropUrl);
-            }
-        }
-        else {
-            let urlArgument = '?share_target=text';
-
-            if (title) urlArgument += `&title=${title}`;
-            if (text) urlArgument += `&text=${text}`;
-            if (url) urlArgument += `&url=${url}`;
-
-            resolve(pairDropUrl + urlArgument);
-        }
+const postMessageToClients = async (message) => {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+    clients.forEach(client => {
+        client.postMessage(message);
     });
-}
+};
+
+const evaluateRequestData = async function (request) {
+    const formData = await request.formData();
+    const files = formData.getAll("allfiles");
+
+    if (!files || files.length === 0) {
+        // Handle text shares if necessary, or ignore. For now, just resolve.
+        return Promise.resolve();
+    }
+
+    const fileObjects = await Promise.all(files.map(async file => ({
+        name: file.name,
+        buffer: await file.arrayBuffer()
+    })));
+
+    return new Promise((resolve, reject) => {
+        const DBOpenRequest = indexedDB.open('pairdrop_store');
+
+        DBOpenRequest.onerror = (event) => {
+            console.error("Error opening IndexedDB:", event);
+            reject("Error opening IndexedDB");
+        };
+
+        DBOpenRequest.onsuccess = (event) => {
+            const db = event.target.result;
+            const transaction = db.transaction('share_target_files', 'readwrite');
+            const objectStore = transaction.objectStore('share_target_files');
+
+            const addPromises = fileObjects.map(file => {
+                return new Promise((resolveAdd, rejectAdd) => {
+                    const request = objectStore.add(file);
+                    request.onsuccess = () => resolveAdd();
+                    request.onerror = () => rejectAdd("Error adding file to object store");
+                });
+            });
+
+            Promise.all(addPromises)
+                .then(async () => {
+                    await postMessageToClients({ type: 'SHARE_SUCCESS' });
+                    resolve();
+                })
+                .catch(error => {
+                    console.error(error);
+                    reject(error);
+                });
+        };
+    });
+};

@@ -9,6 +9,13 @@ if ('serviceWorker' in navigator) {
                 console.error('Service Worker registration failed:', error);
             });
     });
+
+    // Listen for messages from the Service Worker
+    navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'SHARE_SUCCESS') {
+            displaySharedFiles();
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,64 +34,65 @@ document.addEventListener('DOMContentLoaded', () => {
         shareDialog.classList.add('hidden');
     });
 
-    // 3. Check for share target query parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('share_target')) {
-        displaySharedFiles();
-    }
-
-    function displaySharedFiles() {
-        const dbOpenRequest = indexedDB.open('pairdrop_store');
-
-        dbOpenRequest.onsuccess = (e) => {
-            const db = e.target.result;
-            const transaction = db.transaction('share_target_files', 'readonly');
-            const objectStore = transaction.objectStore('share_target_files');
-            const getAllRequest = objectStore.getAll();
-
-            getAllRequest.onsuccess = (event) => {
-                const files = event.target.result;
-                if (files && files.length > 0) {
-                    const fileNames = files.map(file => file.name).join(', ');
-                    fileNameElement.textContent = fileNames;
-                    shareDialog.classList.remove('hidden');
-                    showNotification(fileNames); // Call notification function
-                    clearSharedFiles(db);
-                }
-            };
-        };
-
-        dbOpenRequest.onerror = (e) => {
-            console.error('Error opening IndexedDB:', e);
-        };
-    }
-
-    function clearSharedFiles(db) {
-        const transaction = db.transaction('share_target_files', 'readwrite');
-        const objectStore = transaction.objectStore('share_target_files');
-        const clearRequest = objectStore.clear();
-
-        clearRequest.onsuccess = () => {
-            console.log('Shared files cleared from IndexedDB.');
-        };
-        clearRequest.onerror = (e) => {
-            console.error('Error clearing shared files from IndexedDB:', e);
-        };
-    }
-
-    function showNotification(fileNames) {
-        if (!('Notification' in window)) {
-            console.log('This browser does not support desktop notification');
-            return;
-        }
-
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-                const notification = new Notification('File Received!', {
-                    body: `You received: ${fileNames}`,
-                    icon: '/images/favicon-96x96-notification.png'
-                });
-            }
-        });
-    }
+    // NOTE: The logic to check for URL parameters has been removed.
+    // The app now relies on messages from the service worker.
 });
+
+function displaySharedFiles() {
+    console.log("Displaying shared files...");
+    const shareDialog = document.getElementById('share-dialog');
+    const fileNameElement = document.getElementById('file-name');
+
+    const dbOpenRequest = indexedDB.open('pairdrop_store');
+
+    dbOpenRequest.onsuccess = (e) => {
+        const db = e.target.result;
+        const transaction = db.transaction('share_target_files', 'readonly');
+        const objectStore = transaction.objectStore('share_target_files');
+        const getAllRequest = objectStore.getAll();
+
+        getAllRequest.onsuccess = (event) => {
+            const files = event.target.result;
+            if (files && files.length > 0) {
+                const fileNames = files.map(file => file.name).join(', ');
+                fileNameElement.textContent = fileNames;
+                shareDialog.classList.remove('hidden');
+                showNotification(fileNames);
+                clearSharedFiles(db);
+            }
+        };
+    };
+
+    dbOpenRequest.onerror = (e) => {
+        console.error('Error opening IndexedDB:', e);
+    };
+}
+
+function clearSharedFiles(db) {
+    const transaction = db.transaction('share_target_files', 'readwrite');
+    const objectStore = transaction.objectStore('share_target_files');
+    const clearRequest = objectStore.clear();
+
+    clearRequest.onsuccess = () => {
+        console.log('Shared files cleared from IndexedDB.');
+    };
+    clearRequest.onerror = (e) => {
+        console.error('Error clearing shared files from IndexedDB:', e);
+    };
+}
+
+function showNotification(fileNames) {
+    if (!('Notification' in window)) {
+        console.log('This browser does not support desktop notification');
+        return;
+    }
+
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            const notification = new Notification('File Received!', {
+                body: `You received: ${fileNames}`,
+                icon: '/images/favicon-96x96-notification.png'
+            });
+        }
+    });
+}
