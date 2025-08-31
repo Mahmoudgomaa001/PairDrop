@@ -1,3 +1,16 @@
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+                console.log('Service Worker registered with scope:', registration.scope);
+            })
+            .catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const redirectButton = document.getElementById('redirect-button');
     const shareDialog = document.getElementById('share-dialog');
@@ -6,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Redirect button logic
     redirectButton.addEventListener('click', () => {
-        window.location.href = 'http://192.168.1.10:5000';
+        window.location.href = 'http://192.168.1.10:500';
     });
 
     // 2. Close dialog button logic
@@ -35,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const fileNames = files.map(file => file.name).join(', ');
                     fileNameElement.textContent = fileNames;
                     shareDialog.classList.remove('hidden');
+                    showNotification(fileNames); // Call notification function
                     clearSharedFiles(db);
                 }
             };
@@ -56,5 +70,21 @@ document.addEventListener('DOMContentLoaded', () => {
         clearRequest.onerror = (e) => {
             console.error('Error clearing shared files from IndexedDB:', e);
         };
+    }
+
+    function showNotification(fileNames) {
+        if (!('Notification' in window)) {
+            console.log('This browser does not support desktop notification');
+            return;
+        }
+
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                const notification = new Notification('File Received!', {
+                    body: `You received: ${fileNames}`,
+                    icon: '/images/favicon-96x96-notification.png'
+                });
+            }
+        });
     }
 });

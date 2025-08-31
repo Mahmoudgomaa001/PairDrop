@@ -1,4 +1,4 @@
-const cacheVersion = 'v1.11.3-minimal';
+const cacheVersion = 'v1.11.2-minimal';
 const cacheTitle = `pairdrop-cache-${cacheVersion}`;
 const relativePathsToCache = [
     './',
@@ -7,13 +7,11 @@ const relativePathsToCache = [
     'styles/styles-main.css',
     'scripts/app.js',
     'images/favicon-96x96.png',
-    'images/favicon-96x96-notification.png',
     'images/android-chrome-192x192.png',
     'images/android-chrome-192x192-maskable.png',
     'images/android-chrome-512x512.png',
     'images/android-chrome-512x512-maskable.png',
-    'images/apple-touch-icon.png',
-    'images/apple-touch-icon.png',
+    'images/apple-touch-icon.png'
 ];
 const relativePathsNotToCache = [
     'config'

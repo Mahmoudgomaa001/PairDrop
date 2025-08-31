@@ -38,12 +38,10 @@ body, html {
     display: flex;
     justify-content: center;
     align-items: center;
-    display: none;
 }
 
 #share-dialog-content {
     background-color: white;
-    display: none;
     padding: 30px;
     border-radius: 8px;
     text-align: center;
